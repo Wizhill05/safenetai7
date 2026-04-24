@@ -220,7 +220,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "C:\\Users\\harih\\New folder (7)\\safenetai7\\safenetai\\generated\\prisma",
+      "value": "/home/pskth/projects/safenetai7/safenetai/generated/prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -229,17 +229,16 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "windows",
+        "value": "debian-openssl-3.0.x",
         "native": true
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "C:\\Users\\harih\\New folder (7)\\safenetai7\\safenetai\\prisma\\schema.prisma",
+    "sourceFilePath": "/home/pskth/projects/safenetai7/safenetai/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null,
-    "schemaEnvPath": "../../.env"
+    "rootEnvPath": null
   },
   "relativePath": "../../prisma",
   "clientVersion": "6.19.3",
