@@ -12,7 +12,7 @@ const SUSPICIOUS_KEYWORDS = [
   'final batch', 'limited seats', 'seats are filling', 'apply before registrations close',
   'no further extensions', 'closing soon', 'deadline alert',
 
-  // Action requests
+  // Action requests    
   'click here', 'click the link', 'verify now', 'confirm now', 'apply now',
   'fill out the form asap', 'complete your enrollment', 'enrollment process',
 
@@ -26,7 +26,7 @@ const SUSPICIOUS_KEYWORDS = [
 
   // Too good to be true
   'guaranteed', '100% placement', 'placement guarantee', 'lifetime job assistance',
-  'stipend upto', 'stipend up to', 'free tablet', 'co-branded certificate',
+  'stipend upto', 'stipend up to', 'free tablet', 'co-branded certificate'
 
   // Fake program names
   'job bridge program', 'digital bridge program', 'edulet tablet', 'smart edulet',
@@ -112,6 +112,98 @@ const SCAM_PATTERNS = [
 
 let lastAnalyzedEmail = null;
 let warningBanner = null;
+let bypassComposeGuardOnce = false;
+
+function sendRuntimeMessage(message) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        resolve({ ok: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+      resolve(response || { ok: false, error: 'no_response' });
+    });
+  });
+}
+
+async function requestUnifiedEmailRisk(emailText, senderDomain) {
+  const response = await sendRuntimeMessage({
+    action: 'scanUnifiedRisk',
+    payload: {
+      email_text: emailText,
+      sender_domain: senderDomain,
+      platform: 'gmail',
+      trusted_domains: ['nmamit.in', 'nitte.edu.in'],
+    },
+  });
+
+  if (!response?.ok || !response?.data) {
+    return null;
+  }
+
+  return response.data;
+}
+
+async function requestUnifiedLinkRisk(url) {
+  const response = await sendRuntimeMessage({
+    action: 'scanUnifiedRisk',
+    payload: {
+      url,
+      platform: 'gmail',
+    },
+  });
+
+  if (!response?.ok || !response?.data) {
+    return null;
+  }
+
+  return response.data;
+}
+
+async function requestComposeGuard(draftText, recipients) {
+  const response = await sendRuntimeMessage({
+    action: 'scanComposeDraft',
+    payload: {
+      draft_text: draftText,
+      recipients,
+      trusted_domains: ['nmamit.in', 'nitte.edu.in'],
+    },
+  });
+
+  if (!response?.ok || !response?.data) {
+    return null;
+  }
+
+  return response.data;
+}
+
+function submitRiskFeedback(payload) {
+  return sendRuntimeMessage({
+    action: 'submitRiskFeedback',
+    payload,
+  });
+}
+
+function extractComposeData() {
+  const composeBox = document.querySelector('div[aria-label="Message Body"]') ||
+    document.querySelector('div[role="textbox"][g_editable="true"]');
+
+  const draftText = (composeBox?.innerText || '').trim();
+
+  const recipientNodes = document.querySelectorAll('span[email], input[aria-label*="To"]');
+  const recipients = [];
+  recipientNodes.forEach((node) => {
+    const email = (node.getAttribute('email') || node.value || node.innerText || '').trim();
+    if (email.includes('@')) {
+      recipients.push(email);
+    }
+  });
+
+  return {
+    draftText,
+    recipients: [...new Set(recipients)],
+  };
+}
 
 // Returns true only when the user is viewing an actual email (not inbox/home)
 function isInsideEmailView() {
@@ -126,7 +218,7 @@ function isInsideEmailView() {
   return msgId.length >= 10 && /^[a-zA-Z0-9_+%-]+$/.test(msgId);
 }
 
-function analyzeEmailContent() {
+async function analyzeEmailContent() {
   // Only analyze when the user has actually opened an email
   if (!isInsideEmailView()) {
     console.log('🛡️ PhishGuard: Not in email view, skipping analysis');
@@ -350,6 +442,21 @@ function analyzeEmailContent() {
     analysis.reasons.push(`Contains ${analysis.suspiciousKeywords.length} suspicious keyword${analysis.suspiciousKeywords.length > 1 ? 's' : ''}`);
   }
 
+  const unified = await requestUnifiedEmailRisk(emailTextOriginal, senderDomain);
+  if (unified) {
+    const modelRisk = Number(unified.risk_score || 0);
+    analysis.riskScore = Math.round((analysis.riskScore * 0.6) + (modelRisk * 0.4));
+    analysis.unifiedEventId = unified.event_id || null;
+
+    if (Array.isArray(unified.explanations)) {
+      unified.explanations.slice(0, 3).forEach((reason) => {
+        if (reason && !analysis.reasons.includes(reason)) {
+          analysis.reasons.push(reason);
+        }
+      });
+    }
+  }
+
   // Cap risk score at 100
   analysis.riskScore = Math.min(analysis.riskScore, 100);
 
@@ -569,6 +676,21 @@ function showPhishingWarning(analysis, senderEmail) {
         color: #99f6e4;
         border: 1px solid rgba(45,212,191,0.45);
       }
+      #phishguard-warning .pg-feedback {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      #phishguard-warning .pg-mini-btn {
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.05);
+        color: #d4d4d8;
+        border-radius: 8px;
+        padding: 5px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
     </style>
 
     <div class="pg-header">
@@ -602,6 +724,11 @@ function showPhishingWarning(analysis, senderEmail) {
       <div class="pg-actions">
         <button id="phishguard-report-btn" class="pg-btn report">Report to SafeNet</button>
         <button id="phishguard-open-dashboard-btn" class="pg-btn open">Open Dashboard</button>
+      </div>
+
+      <div class="pg-feedback">
+        <button id="phishguard-feedback-right" class="pg-mini-btn">Looks Right</button>
+        <button id="phishguard-feedback-fp" class="pg-mini-btn">False Positive</button>
       </div>
 
       <div class="pg-footer">
@@ -691,6 +818,34 @@ function showPhishingWarning(analysis, senderEmail) {
   if (openDashBtn) {
     openDashBtn.addEventListener('click', () => {
       window.open('http://localhost:3000/dashboard', '_blank');
+    });
+  }
+
+  const feedbackRightBtn = document.getElementById('phishguard-feedback-right');
+  if (feedbackRightBtn) {
+    feedbackRightBtn.addEventListener('click', async () => {
+      await submitRiskFeedback({
+        event_id: analysis.unifiedEventId || null,
+        platform: 'gmail',
+        verdict: 'correct_alert',
+        is_helpful: true,
+      });
+      feedbackRightBtn.textContent = 'Thanks';
+      feedbackRightBtn.disabled = true;
+    });
+  }
+
+  const feedbackFpBtn = document.getElementById('phishguard-feedback-fp');
+  if (feedbackFpBtn) {
+    feedbackFpBtn.addEventListener('click', async () => {
+      await submitRiskFeedback({
+        event_id: analysis.unifiedEventId || null,
+        platform: 'gmail',
+        verdict: 'false_positive',
+        is_helpful: false,
+      });
+      feedbackFpBtn.textContent = 'Submitted';
+      feedbackFpBtn.disabled = true;
     });
   }
 
@@ -876,7 +1031,112 @@ function extractEmailData() {
   return data;
 }
 
+function setupPreClickGuard() {
+  document.addEventListener('click', async (event) => {
+    const anchor = event.target?.closest?.('.a3s.aiL a, .ii.gt a, [data-message-id] a');
+    if (!anchor) return;
+
+    const href = anchor.getAttribute('href') || '';
+    if (!href || href.startsWith('mailto:') || href.startsWith('#')) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const verdict = await requestUnifiedLinkRisk(href);
+    const riskScore = Number(verdict?.risk_score || 0);
+
+    if (!verdict || riskScore < 65) {
+      window.open(href, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const explanation = Array.isArray(verdict.explanations)
+      ? verdict.explanations.slice(0, 2).join('\n- ')
+      : 'Potential phishing indicators found.';
+
+    const proceed = window.confirm(
+      `SafeNet warning: this link looks risky (${riskScore}%).\n\n- ${explanation}\n\nOpen anyway?`
+    );
+
+    if (proceed) {
+      window.open(href, '_blank', 'noopener,noreferrer');
+      submitRiskFeedback({
+        event_id: verdict.event_id || null,
+        platform: 'gmail',
+        verdict: 'user_overrode_link_warning',
+        is_helpful: false,
+      });
+    } else {
+      submitRiskFeedback({
+        event_id: verdict.event_id || null,
+        platform: 'gmail',
+        verdict: 'user_blocked_link_open',
+        is_helpful: true,
+      });
+    }
+  }, true);
+}
+
+function setupComposeGuard() {
+  document.addEventListener('click', async (event) => {
+    const sendButton = event.target?.closest?.('div[role="button"][data-tooltip^="Send"], div[role="button"][aria-label^="Send"]');
+    if (!sendButton) return;
+
+    if (bypassComposeGuardOnce) {
+      bypassComposeGuardOnce = false;
+      return;
+    }
+
+    const { draftText, recipients } = extractComposeData();
+    if (!draftText || draftText.length < 20) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') {
+      event.stopImmediatePropagation();
+    }
+
+    const guard = await requestComposeGuard(draftText, recipients);
+    if (!guard || !guard.should_confirm) {
+      bypassComposeGuardOnce = true;
+      sendButton.click();
+      return;
+    }
+
+    const hitSummary = (guard.sensitive_hits || [])
+      .slice(0, 3)
+      .map((hit) => `${hit.category} x${hit.count}`)
+      .join(', ');
+
+    const recipientSummary = (guard.external_domains || []).slice(0, 3).join(', ');
+    const proceed = window.confirm(
+      `SafeNet compose check (${guard.risk_score}% risk):\n` +
+      `${guard.message}\n` +
+      `${hitSummary ? `Sensitive: ${hitSummary}\n` : ''}` +
+      `${recipientSummary ? `External recipients: ${recipientSummary}\n` : ''}` +
+      '\nSend anyway?'
+    );
+
+    submitRiskFeedback({
+      platform: 'gmail',
+      verdict: proceed ? 'compose_override' : 'compose_blocked',
+      is_helpful: !proceed,
+      note: `risk=${guard.risk_score}`,
+    });
+
+    if (proceed) {
+      bypassComposeGuardOnce = true;
+      sendButton.click();
+    }
+  }, true);
+}
+
 // Add scan button on load
 setTimeout(addScanButton, 2000);
 setTimeout(addScanButton, 4000);
+
+setupPreClickGuard();
+setupComposeGuard();
 

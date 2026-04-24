@@ -7,6 +7,8 @@ numpy
 python-multipart
 PyMuPDF
 python-docx
+requests
+beautifulsoup4
 
 
 

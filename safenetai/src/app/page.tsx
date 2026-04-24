@@ -20,7 +20,7 @@ export default async function Home() {
 
   return (
     <main className="relative min-h-screen overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(148,163,184,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.14)_1px,transparent_1px)] [background-size:48px_48px]" />
+      <div className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.14)_1px,transparent_1px)] [background-size:48px_48px]" />
 
       <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 py-10 md:px-8 md:py-14">
         <header className="flex items-center justify-between gap-4">
@@ -62,8 +62,8 @@ export default async function Home() {
 
         <section className="mt-10 grid gap-6 lg:grid-cols-12 lg:items-stretch">
           <Card className="glass-panel relative overflow-hidden lg:col-span-7">
-            <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-primary/15 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-24 -left-24 size-72 rounded-full bg-secondary/15 blur-3xl" />
+            <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-primary/12 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-24 size-72 rounded-full bg-muted blur-3xl" />
 
             <div className="relative p-6 md:p-10">
               <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold tracking-wide text-muted-foreground">

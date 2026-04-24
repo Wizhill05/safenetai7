@@ -48,6 +48,147 @@ async function getAppApiBaseUrl() {
   return 'http://localhost:3000';
 }
 
+async function getModelApiBaseUrl() {
+  if (typeof GEMINI_CONFIG !== 'undefined' && GEMINI_CONFIG.modelApiBaseUrl) {
+    return GEMINI_CONFIG.modelApiBaseUrl;
+  }
+
+  const stored = await chrome.storage.local.get(['safenetModelApiBaseUrl']);
+  if (stored.safenetModelApiBaseUrl) {
+    return stored.safenetModelApiBaseUrl;
+  }
+
+  return 'http://localhost:8000';
+}
+
+async function scanUnifiedRisk(payload) {
+  try {
+    const baseUrl = await getModelApiBaseUrl();
+    const cleanBaseUrl = String(baseUrl).replace(/\/$/, '');
+    const response = await fetch(`${cleanBaseUrl}/scan/unified/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload || {}),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: data?.detail || `http_${response.status}`,
+      };
+    }
+
+    return {
+      ok: true,
+      data,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error?.message || 'network_error',
+    };
+  }
+}
+
+async function scanComposeGuard(payload) {
+  try {
+    const baseUrl = await getModelApiBaseUrl();
+    const cleanBaseUrl = String(baseUrl).replace(/\/$/, '');
+    const response = await fetch(`${cleanBaseUrl}/scan/unified/compose-guard`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload || {}),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: data?.detail || `http_${response.status}`,
+      };
+    }
+
+    return {
+      ok: true,
+      data,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error?.message || 'network_error',
+    };
+  }
+}
+
+async function scanUrlWithIntel(payload) {
+  try {
+    const baseUrl = await getModelApiBaseUrl();
+    const cleanBaseUrl = String(baseUrl).replace(/\/$/, '');
+    const response = await fetch(`${cleanBaseUrl}/scan/unified/url-intel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload || {}),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: data?.detail || `http_${response.status}`,
+      };
+    }
+
+    return {
+      ok: true,
+      data,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error?.message || 'network_error',
+    };
+  }
+}
+
+async function submitUnifiedFeedback(payload) {
+  try {
+    const baseUrl = await getModelApiBaseUrl();
+    const cleanBaseUrl = String(baseUrl).replace(/\/$/, '');
+    const response = await fetch(`${cleanBaseUrl}/scan/unified/feedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload || {}),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: data?.detail || `http_${response.status}`,
+      };
+    }
+
+    return {
+      ok: true,
+      data,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error?.message || 'network_error',
+    };
+  }
+}
+
 function safeParseJsonObject(text) {
   try {
     return JSON.parse(text);
@@ -143,7 +284,12 @@ async function updateBlockRules() {
     const newRules = phishingLinks.map((url, index) => ({
       id: index + 1,
       priority: 1,
-      action: { type: 'block' },
+      action: {
+        type: 'redirect',
+        redirect: {
+          extensionPath: '/blocked.html'
+        }
+      },
       condition: {
         urlFilter: url,
         resourceTypes: ['main_frame']
@@ -365,49 +511,99 @@ Format your response as JSON:
   }
 }
 
-async function analyzeChatMessageWithGemini(messageText) {
-  const buildLocalFallback = (reason) => {
-    const text = String(messageText || '').toLowerCase();
-    const indicators = [
-      'urgent',
-      'verify',
-      'account',
-      'suspend',
-      'blocked',
-      'otp',
-      'password',
-      'bank',
-      'kyc',
-      'fee',
-      'payment',
-      'click',
-      'shortlisted',
-      'internship',
-      'whatsapp',
-      'job offer',
-      'refundable',
-    ];
+function clampScore(value) {
+  return Math.max(0, Math.min(100, Number(value) || 0));
+}
 
-    let score = 0;
-    indicators.forEach((word) => {
-      if (text.includes(word)) score += 1;
-    });
+function analyzeChatMessageWithLocalModel(messageText, platform = 'unknown') {
+  const textRaw = String(messageText || '');
+  const text = textRaw.toLowerCase();
 
-    if (text.includes('http://') || text.includes('https://')) score += 2;
-
-    const riskScore = Math.min(95, 35 + score * 7);
-    const isScam = score >= 3;
-
-    return {
-      isScam,
-      riskScore: isScam ? riskScore : Math.min(25, riskScore),
-      scamType: isScam ? 'phishing' : 'unknown',
-      explanation: isScam
-        ? `Local fallback flagged scam indicators (${reason}).`
-        : `AI analysis unavailable (${reason}); local fallback found low risk.`,
-      fallback: true,
-    };
+  const keywordGroups = {
+    urgency: ['urgent', 'immediately', 'asap', 'within 30 minutes', 'final reminder', 'act now'],
+    credential: ['verify account', 'confirm account', 'otp', 'password', 'pin', 'kyc', 'login'],
+    money: ['fee', 'payment', 'processing fee', 'refundable', 'advance payment', 'deposit'],
+    reward: ['won', 'prize', 'reward', 'cashback', 'gift', 'lottery'],
+    jobScam: ['shortlisted', 'internship', 'job offer', 'registration', 'certificate', 'onboarding'],
+    coercion: ['suspended', 'blocked', 'restricted', 'legal action', 'penalty'],
   };
+
+  const patternRules = [
+    { name: 'credential_harvest', pattern: /(verify|confirm|update).{0,30}(account|password|otp|login)/i, weight: 18 },
+    { name: 'money_pressure', pattern: /(pay|payment|deposit|fee).{0,25}(now|today|immediately|urgent)/i, weight: 18 },
+    { name: 'urgency_threat_combo', pattern: /(urgent|immediate|within).{0,30}(suspend|block|restrict|penalty)/i, weight: 16 },
+    { name: 'job_fee_combo', pattern: /(internship|job|shortlisted).{0,40}(fee|payment|deposit|registration)/i, weight: 20 },
+  ];
+
+  let score = 0;
+  const reasons = [];
+  const matchedGroups = [];
+
+  Object.entries(keywordGroups).forEach(([groupName, words]) => {
+    const hits = words.filter((word) => text.includes(word));
+    if (hits.length > 0) {
+      const weight = groupName === 'credential' ? 10 : groupName === 'money' ? 9 : 7;
+      score += Math.min(22, hits.length * weight);
+      matchedGroups.push(groupName);
+      reasons.push(`${groupName} signals: ${hits.slice(0, 2).join(', ')}`);
+    }
+  });
+
+  patternRules.forEach((rule) => {
+    if (rule.pattern.test(textRaw)) {
+      score += rule.weight;
+      reasons.push(`matched pattern: ${rule.name.replace('_', ' ')}`);
+    }
+  });
+
+  const urls = textRaw.match(/https?:\/\/[^\s]+/gi) || [];
+  if (urls.length > 0) {
+    score += 8;
+    reasons.push(`contains ${urls.length} external link(s)`);
+  }
+
+  if (/(bit\.ly|tinyurl|cutt\.ly|t\.co|rb\.gy)/i.test(textRaw)) {
+    score += 12;
+    reasons.push('uses shortened link domain');
+  }
+
+  if (/\b(?:\+?\d{1,3}[\s-]?)?(?:\d[\s-]?){10,12}\b/.test(textRaw) && /(whatsapp|telegram|contact)/i.test(textRaw)) {
+    score += 8;
+    reasons.push('asks to continue via external contact number');
+  }
+
+  if (platform === 'linkedin' && /(internship|job|hiring)/i.test(textRaw) && /(fee|payment|deposit)/i.test(textRaw)) {
+    score += 10;
+  }
+
+  if (platform === 'whatsapp' && /(family|friend|known person)/i.test(textRaw) && /(send money|transfer)/i.test(textRaw)) {
+    score += 10;
+  }
+
+  const riskScore = clampScore(Math.min(96, score));
+  const isScam = riskScore >= 58;
+
+  let scamType = 'unknown';
+  if (matchedGroups.includes('jobScam')) scamType = 'job scam';
+  if (matchedGroups.includes('money')) scamType = 'financial fraud';
+  if (matchedGroups.includes('credential')) scamType = 'phishing';
+
+  const explanation =
+    reasons.length > 0
+      ? `Local AI model detected: ${reasons.slice(0, 3).join(' | ')}`
+      : 'Local AI model found low-risk message patterns.';
+
+  return {
+    isScam,
+    riskScore,
+    scamType,
+    explanation,
+    modelSource: 'local_hybrid_v1',
+  };
+}
+
+async function analyzeChatMessageWithGemini(messageText, platform = 'unknown') {
+  const localResult = analyzeChatMessageWithLocalModel(messageText, platform);
 
   try {
     const geminiApiKey = await getGeminiApiKey();
@@ -443,31 +639,34 @@ Message: ${messageText}`;
     );
 
     if (!response.ok) {
-      if (response.status === 429) {
-        // Rate-limited: use local fallback instead of throwing noisy runtime errors.
-        return buildLocalFallback('rate_limited_429');
-      }
-
-      return buildLocalFallback(`http_${response.status}`);
+      return localResult;
     }
 
     const data = await response.json();
     const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const parsed = safeParseJsonObject(responseText);
-
     if (!parsed) {
-      return buildLocalFallback('parse_failed');
+      return localResult;
     }
 
+    const geminiScore = clampScore(parsed.riskScore);
+    const combinedScore = clampScore(Math.round(localResult.riskScore * 0.65 + geminiScore * 0.35));
+    const finalIsScam = combinedScore >= 58 || Boolean(parsed.isScam);
+    const finalScamType = String(parsed.scamType || localResult.scamType || 'unknown');
+
     return {
-      isScam: Boolean(parsed.isScam),
-      riskScore: Math.max(0, Math.min(100, Number(parsed.riskScore) || 0)),
-      scamType: String(parsed.scamType || 'unknown'),
-      explanation: String(parsed.explanation || 'No explanation provided.'),
+      isScam: finalIsScam,
+      riskScore: combinedScore,
+      scamType: finalScamType,
+      explanation: [
+        localResult.explanation,
+        String(parsed.explanation || '').trim(),
+      ].filter(Boolean).slice(0, 2).join(' | '),
+      modelSource: 'hybrid_local_plus_gemini',
     };
   } catch (error) {
-    console.warn('Gemini chat analysis unavailable, using local fallback.');
-    return buildLocalFallback('network_or_runtime');
+    console.warn('Gemini chat analysis unavailable; using local hybrid model.');
+    return localResult;
   }
 }
 
@@ -762,8 +961,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'analyzeChatMessage') {
-    analyzeChatMessageWithGemini(request.messageText).then((analysis) => {
+    analyzeChatMessageWithGemini(request.messageText, request.platform || 'unknown').then((analysis) => {
       sendResponse(analysis);
+    });
+    return true;
+  }
+
+  if (request.action === 'scanUnifiedRisk') {
+    scanUnifiedRisk(request.payload || {}).then((result) => {
+      sendResponse(result);
+    });
+    return true;
+  }
+
+  if (request.action === 'scanComposeDraft') {
+    scanComposeGuard(request.payload || {}).then((result) => {
+      sendResponse(result);
+    });
+    return true;
+  }
+
+  if (request.action === 'scanUrlIntel') {
+    scanUrlWithIntel(request.payload || {}).then((result) => {
+      sendResponse(result);
+    });
+    return true;
+  }
+
+  if (request.action === 'submitRiskFeedback') {
+    submitUnifiedFeedback(request.payload || {}).then((result) => {
+      sendResponse(result);
     });
     return true;
   }

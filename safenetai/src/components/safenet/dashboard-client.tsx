@@ -48,6 +48,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
+import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
 import { api } from "~/trpc/react";
 
@@ -362,28 +363,25 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
         </div>
         <div className="flex flex-wrap gap-2 justify-center">
           {navItems.map((item) => (
-            <button
+            <Button
               key={item.key}
+              variant={activeSection === item.key ? "default" : "outline"}
+              className="rounded-full px-5"
               onClick={() => setActiveSection(item.key)}
-              className={`flex items-center rounded-full border px-5 py-2 text-sm font-medium transition-all ${
-                activeSection === item.key
-                  ? "border-primary bg-primary/15 text-primary shadow-[0_10px_30px_rgba(0,0,0,0.25)]"
-                  : "border-border bg-muted/50 text-muted-foreground hover:border-primary/35 hover:text-foreground"
-              }`}
             >
               {item.icon}
               {item.label}
-            </button>
+            </Button>
           ))}
         </div>
       </section>
 
       {/* Stats row */}
       <section className="grid gap-4 md:grid-cols-4">
-        <MetricCard title="Total Scans" value={stats.totalDetectedGlobal || stats.totalScans} color="text-primary" />
+        <MetricCard title="Total Scans" value={stats.totalDetectedGlobal || stats.totalScans} color="text-foreground" />
         <MetricCard title="High Risk Flags" value={stats.dangerousScans} color="text-destructive" />
-        <MetricCard title="Global Reports" value={stats.userReportsGlobal || stats.totalReports} color="text-secondary" />
-        <MetricCard title="Your Reports" value={stats.totalReports} color="text-emerald" />
+        <MetricCard title="Global Reports" value={stats.userReportsGlobal || stats.totalReports} color="text-foreground" />
+        <MetricCard title="Your Reports" value={stats.totalReports} color="text-foreground" />
       </section>
 
       {activeSection === "detect" && (
@@ -583,16 +581,15 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Input className="glass-input" value={reportTitle} onChange={(e) => setReportTitle(e.target.value)} placeholder="Report Title" />
-                <select
+                <Select
                   value={reportType}
                   onChange={(e) => setReportType(e.target.value as "link" | "email" | "document" | "other")}
-                  className="h-10 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/35"
                 >
                   <option value="link">Link</option>
                   <option value="email">Email</option>
                   <option value="document">Document</option>
                   <option value="other">Other</option>
-                </select>
+                </Select>
                 <Textarea className="glass-input min-h-[100px]" value={reportDescription} onChange={(e) => setReportDescription(e.target.value)} placeholder="Describe the scam pattern and evidence" />
                 <div className="grid gap-3 md:grid-cols-2">
                   <Input className="glass-input" value={reportUrl} onChange={(e) => setReportUrl(e.target.value)} placeholder="URL (optional)" />
@@ -649,7 +646,7 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                 </div>
                 <div className="rounded-xl border border-border bg-background/30 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Link/Email Reports</p>
-                  <p className="text-xl font-semibold text-secondary">{reportFeedStats.linkOrEmail}</p>
+                  <p className="text-xl font-semibold text-foreground">{reportFeedStats.linkOrEmail}</p>
                 </div>
               </div>
 
@@ -703,26 +700,24 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <select
+                  <Select
                     value={reportFeedFilter}
                     onChange={(e) => setReportFeedFilter(e.target.value as "all" | "link" | "email" | "document" | "other")}
-                    className="h-10 rounded-md border border-border bg-input px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/35"
                   >
                     <option value="all">All</option>
                     <option value="link">Link</option>
                     <option value="email">Email</option>
                     <option value="document">Doc</option>
                     <option value="other">Other</option>
-                  </select>
-                  <select
+                  </Select>
+                  <Select
                     value={reportSort}
                     onChange={(e) => setReportSort(e.target.value as "newest" | "oldest" | "evidence")}
-                    className="h-10 rounded-md border border-border bg-input px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/35"
                   >
                     <option value="newest">Newest</option>
                     <option value="oldest">Oldest</option>
                     <option value="evidence">Evidence</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 
@@ -748,7 +743,7 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                     
                     <div className="mt-3 space-y-1">
                       {item.url && <p className="text-sm text-primary break-all"><span className="opacity-50">URL:</span> {item.url}</p>}
-                      {item.email && <p className="text-sm text-secondary break-all"><span className="opacity-50">Email:</span> {item.email}</p>}
+                      {item.email && <p className="text-sm text-foreground break-all"><span className="opacity-50">Email:</span> {item.email}</p>}
                       {item.reporterInfo && <p className="text-xs text-muted-foreground"><span className="opacity-50">Reporter:</span> {item.reporterInfo}</p>}
                     </div>
 
@@ -828,7 +823,7 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
 
               <div className="rounded-xl border border-secondary/30 bg-secondary/10 p-5">
                 <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
-                  <Target className="size-4 text-secondary" /> Quick Security Challenge
+                  <Target className="size-4 text-foreground" /> Quick Security Challenge
                 </h3>
                 <div className="space-y-4">
                   {QUIZ_QUESTIONS.map((question, idx) => (
@@ -840,13 +835,14 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                         {question.options.map((option, optionIndex) => {
                           const isSelected = quizAnswers[idx] === optionIndex;
                           return (
-                            <button
+                            <Button
                               key={option}
                               type="button"
-                              className={`rounded-md border px-3 py-2 text-left text-sm transition ${
+                              variant={isSelected ? "default" : "outline"}
+                              className={`h-auto justify-start px-3 py-2 text-left text-sm transition ${
                                 isSelected
-                                  ? "border-primary bg-primary/15 text-foreground"
-                                  : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                                  ? "text-primary-foreground"
+                                  : "text-muted-foreground hover:text-foreground"
                               }`}
                               onClick={() => {
                                 setQuizAnswers((prev) => ({
@@ -856,7 +852,7 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                               }}
                             >
                               {option}
-                            </button>
+                            </Button>
                           );
                         })}
                       </div>
@@ -894,7 +890,7 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                     <p className="font-semibold">{learningStats.streakDays}d</p>
                   </div>
                   <div className="rounded-lg border border-border bg-muted/40 p-2 text-center">
-                    <Star className="mx-auto mb-1 size-4 text-secondary" />
+                    <Star className="mx-auto mb-1 size-4 text-foreground" />
                     <p className="text-xs text-muted-foreground">Quiz</p>
                     <p className="font-semibold">{learningStats.quizCorrect}/{QUIZ_QUESTIONS.length}</p>
                   </div>
@@ -906,11 +902,11 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                 </div>
 
                 <div className="rounded-lg border border-secondary/30 bg-secondary/10 p-3">
-                  <p className="mb-2 text-xs uppercase tracking-wider text-secondary">Unlocked Badges</p>
+                  <p className="mb-2 text-xs uppercase tracking-wider text-foreground">Unlocked Badges</p>
                   {learningStats.badges.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {learningStats.badges.map((badge) => (
-                        <span key={badge} className="rounded-full border border-secondary/30 bg-secondary/20 px-2.5 py-1 text-xs text-secondary">
+                        <span key={badge} className="rounded-full border border-secondary/30 bg-secondary/20 px-2.5 py-1 text-xs text-foreground">
                           {badge}
                         </span>
                       ))}
@@ -929,7 +925,7 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                   <p className="font-mono text-sm text-primary">{userEmail}</p>
                 </div>
                 <div className="mt-6 rounded-lg border border-secondary/30 bg-secondary/10 p-4">
-                  <p className="text-xs text-secondary/90 leading-relaxed">
+                  <p className="text-xs text-foreground leading-relaxed">
                     <span className="font-bold">SYSTEM NOTE:</span> Your activity helps train the community defense network. Every report increases global resilience.
                   </p>
                 </div>
@@ -958,7 +954,7 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                           ? "bg-emerald/20 text-emerald border border-emerald/30"
                           : report.status === "rejected"
                             ? "bg-destructive/20 text-destructive border border-destructive/30"
-                            : "bg-secondary/20 text-secondary border border-secondary/30"
+                            : "bg-secondary/20 text-foreground border border-secondary/30"
                       }`}>
                         {report.status}
                       </span>
@@ -970,7 +966,7 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                     
                     <div className="space-y-1 mb-4">
                       {report.url && <p className="text-sm text-primary break-all"><span className="opacity-50">URL:</span> {report.url}</p>}
-                      {report.email && <p className="text-sm text-secondary break-all"><span className="opacity-50">EMAIL:</span> {report.email}</p>}
+                      {report.email && <p className="text-sm text-foreground break-all"><span className="opacity-50">EMAIL:</span> {report.email}</p>}
                     </div>
 
                     {report.uploads.length > 0 && (
@@ -1024,7 +1020,7 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
 
           <Card className="glass-panel h-fit">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Bot className="size-5 text-secondary" /> AI Copilot</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Bot className="size-5 text-foreground" /> AI Copilot</CardTitle>
               <CardDescription>Admin support assistant powered by Gemini</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1035,7 +1031,7 @@ export function DashboardClient({ userName, userEmail, isAdmin }: DashboardClien
                       ? "bg-secondary/10 border-secondary/20 text-foreground" 
                       : "bg-primary/10 border-primary/20 text-foreground ml-4"
                   }`}>
-                    <p className={`mb-1 text-[10px] uppercase font-bold tracking-wider ${entry.role === "assistant" ? "text-secondary" : "text-primary"}`}>
+                    <p className={`mb-1 text-[10px] uppercase font-bold tracking-wider ${entry.role === "assistant" ? "text-foreground" : "text-primary"}`}>
                       {entry.role === "assistant" ? "System Copilot" : "Admin"}
                     </p>
                     <p className="leading-relaxed">{entry.text}</p>

@@ -21,7 +21,7 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center px-4 py-16">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background:radial-gradient(900px_circle_at_20%_20%,rgba(45,212,191,0.35),transparent_55%),radial-gradient(900px_circle_at_80%_10%,rgba(167,139,250,0.28),transparent_55%),radial-gradient(900px_circle_at_50%_90%,rgba(251,191,36,0.18),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background:radial-gradient(900px_circle_at_20%_20%,rgba(255,255,255,0.24),transparent_55%),radial-gradient(900px_circle_at_80%_10%,rgba(255,255,255,0.14),transparent_55%)]" />
       <Card className="glass-panel relative w-full max-w-md">
         <CardHeader>
           <CardTitle className="font-heading text-xl tracking-tight">Sign in</CardTitle>

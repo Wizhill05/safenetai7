@@ -34,19 +34,43 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://mail.google.com/*"],
-      "js": ["content-gmail.js"],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content-link-guard.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://mail.google.com/*"
+      ],
+      "js": [
+        "content-gmail.js"
+      ],
       "run_at": "document_end",
       "all_frames": true
     },
     {
-      "matches": ["https://web.whatsapp.com/*"],
-      "js": ["content-whatsapp.js"],
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "content-whatsapp.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://linkedin.com/messaging/*", "https://www.linkedin.com/messaging/*", "https://*.linkedin.com/messaging/*"],
-      "js": ["content-linkedin.js"],
+      "matches": [
+        "https://linkedin.com/messaging/*",
+        "https://www.linkedin.com/messaging/*",
+        "https://*.linkedin.com/messaging/*"
+      ],
+      "js": [
+        "content-linkedin.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -58,5 +82,19 @@
         "path": "rules.json"
       }
     ]
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "blocked.html",
+        "blocked.css",
+        "blocked.js",
+        "favicon.ico"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
+    }
+  ]
 }
