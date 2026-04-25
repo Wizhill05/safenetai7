@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1>🛡️ SafeNet AI</h1>
+<h1>PhishGuard</h1>
 
 **An AI-powered cybersecurity platform to detect phishing links, scam emails, and malicious documents — built for the real world.**
 
@@ -17,7 +17,7 @@
 
 ## 📌 Overview
 
-**SafeNet AI** is a full-stack, production-grade cybersecurity intelligence platform that uses **machine learning** to detect and flag phishing threats across multiple attack vectors — URLs, emails, documents, and offer scams.
+**PhishGuard** is a full-stack, production-grade cybersecurity intelligence platform that uses **machine learning** to detect and flag phishing threats across multiple attack vectors — URLs, emails, documents, and offer scams.
 
 It is built as a command center for individuals and administrators to actively scan suspicious content, report scams to a community feed, track their threat-detection history, and learn about online safety — all from one sleek, dark-mode dashboard.
 
@@ -284,8 +284,6 @@ python train/train_link_model.py
 python train/train_doc_model.py
 python train/train_offer_model.py
 
-Built with 💙 by **Hariharanath** · Department of Computer Science & Engineering
-
-*SafeNet AI — Protecting people one scan at a time.*
+*PhishGuard — Protecting people one scan at a time.*
 
 </div>
